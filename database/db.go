@@ -8,11 +8,9 @@ import (
 	"log"
 )
 
-const dsn = "host=postgres port=5432 user=postgres dbname=mydb sslmode=disable password=root"
-
 var DB *gorm.DB
 
-func Connection() {
+func Connection(dsn string) {
 	//Database connection
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {

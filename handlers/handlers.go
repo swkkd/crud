@@ -26,7 +26,7 @@ func (db *DbConn) GetCustomers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	tmpl, err := template.ParseFiles("static/customers.html")
+	tmpl, err := template.ParseFiles("static/customers.html", "static/header.html")
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
@@ -54,7 +54,7 @@ func (db *DbConn) GetCustomer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl, err := template.ParseFiles("static/customers.html")
+	tmpl, err := template.ParseFiles("static/customers.html", "static/header.html")
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
@@ -93,24 +93,59 @@ func (db *DbConn) DeleteCustomer(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (db *DbConn) SearchCustomers(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	search := ""
+	search = vars["search"]
+
+	customers, err := database.SearchCustomers(search, db.DB)
+	if err != nil {
+		return
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tmpl, err := template.ParseFiles("static/search.html", "static/header.html")
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	if err := tmpl.Execute(w, customers); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+}
+
 func (db *DbConn) CreateCustomer(w http.ResponseWriter, r *http.Request) {
 	var customer models.Customer
 	if r.Method == "POST" {
-		customer.FirstName = r.FormValue("FirstName")
-		customer.LastName = r.FormValue("LastName")
-		customer.Email = r.FormValue("Email")
-		customer.Gender = r.FormValue("Gender")
-		customer.Birthday = r.FormValue("Birthday")
-		customer.Address = r.FormValue("Address")
+		customer.FirstName = r.PostFormValue("FirstName")
+		customer.LastName = r.PostFormValue("LastName")
+		customer.Email = r.PostFormValue("Email")
+		customer.Gender = r.PostFormValue("Gender")
+		customer.Birthday = r.PostFormValue("Birthday")
+		customer.Address = r.PostFormValue("Address")
 
+		json.NewDecoder(r.Body).Decode(&customer)
+
+		if err := database.CreateCustomer(customer, db.DB); err != nil {
+			log.Println(err)
+			return
+		}
 	}
-	json.NewDecoder(r.Body).Decode(&customer)
-	if err := database.CreateCustomer(customer, db.DB); err != nil {
-		log.Println(err)
+	tmpl, err := template.ParseFiles("static/create.html", "static/header.html")
+	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, err.Error(), 400)
 		return
 	}
-	http.Redirect(w, r, "/", 301)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
 }
+
 func (db *DbConn) UpdateCustomer(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	customer, exists, err := database.GetCustomerByID(id, db.DB)

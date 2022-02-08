@@ -8,7 +8,7 @@ import (
 
 func GetCustomers(db *gorm.DB) ([]models.Customer, error) {
 	var customers []models.Customer
-	if err := db.Find(&customers).Error; err != nil {
+	if err := db.Order("id").Find(&customers).Error; err != nil {
 		return nil, err
 	}
 	return customers, nil
@@ -31,6 +31,7 @@ func DeleteCustomer(id string, db *gorm.DB) error {
 func CreateCustomer(customer models.Customer, db *gorm.DB) error {
 	if err := db.Create(&customer); err.Error != nil {
 		log.Println(err.Error)
+		log.Printf("created customer: %v", customer)
 		return err.Error
 	}
 	return nil
@@ -40,4 +41,12 @@ func UpdateCustomer(customer models.Customer, db *gorm.DB) error {
 		return err
 	}
 	return nil
+}
+func SearchCustomers(query string, db *gorm.DB) ([]models.Customer, error) {
+	var customers []models.Customer
+	query = "%" + query + "%"
+	if err := db.Where("lower(first_name) LIKE ? OR lower(last_name) LIKE ?", query, query).Find(&customers).Error; err != nil {
+		return nil, err
+	}
+	return customers, nil
 }
