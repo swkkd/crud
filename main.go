@@ -21,12 +21,13 @@ func init() {
 
 func main() {
 	database.Connection(DSN)
-	routers.Setup()
 	sqlDb, err := database.DB.DB()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer sqlDb.Close()
+
+	routers.Setup()
 }
 
 func readFromENV(key, defaultVal string) string {
