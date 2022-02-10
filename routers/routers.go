@@ -1,16 +1,25 @@
 package routers
 
 import (
+	"context"
+	"flag"
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	"github.com/swkkd/crud/database"
 	"github.com/swkkd/crud/handlers"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"time"
 )
 
 func Setup() {
+	var wait time.Duration
+	flag.DurationVar(&wait, "graceful-timeout", time.Second*15, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
+	flag.Parse()
+
 	r := mux.NewRouter()
+
 	handleFunc := &handlers.DbConn{
 		DB: database.GetDB(),
 	}
@@ -22,10 +31,28 @@ func Setup() {
 	r.HandleFunc("/search", handleFunc.SearchCustomers).Queries("search", "{search}")
 	r.HandleFunc("/search", handleFunc.SearchCustomers)
 
-	handler := cors.Default().Handler(r)
-
-	if err := http.ListenAndServe(":8080", handler); err != nil && err != http.ErrServerClosed {
-		log.Fatal(err)
+	//handler := cors.Default().Handler(r)
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
 	}
-	log.Printf("Finished")
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Println(err)
+		}
+	}()
+	c := make(chan os.Signal, 1)
+
+	signal.Notify(c, os.Interrupt)
+
+	<-c
+
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("error shutting down server %s", err)
+	} else {
+		log.Println("Server gracefully stopped")
+	}
 }
